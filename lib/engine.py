@@ -1,5 +1,6 @@
 """Rule matching engine for secret-guard."""
 
+import re
 from dataclasses import dataclass, field
 from typing import List
 
@@ -32,3 +33,15 @@ def extract_candidates(rule, tool_name, tool_input):
                 candidates.append(' '.join(e.get('new_string', '') for e in edits))
             # Read has no content field yet — nothing to add.
     return [c for c in candidates if c]
+
+
+def rule_matches(rule, tool_name, tool_input):
+    """Check if a rule's pattern matches any candidate from tool_input."""
+    candidates = extract_candidates(rule, tool_name, tool_input)
+    if not candidates:
+        return False
+    try:
+        regex = re.compile(rule.pattern, re.IGNORECASE)
+    except re.error:
+        return False
+    return any(regex.search(candidate) for candidate in candidates)

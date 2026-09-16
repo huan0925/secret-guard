@@ -55,5 +55,30 @@ class TestExtractCandidates(unittest.TestCase):
         self.assertEqual(candidates, [])
 
 
+from lib.engine import rule_matches
+
+
+class TestRuleMatches(unittest.TestCase):
+    def test_matches_when_pattern_found_in_a_candidate(self):
+        rule = make_rule(['command'], pattern=r'gcloud\s+secrets\s+versions\s+access')
+        self.assertTrue(rule_matches(rule, 'Bash', {'command': 'gcloud secrets versions access foo'}))
+
+    def test_does_not_match_unrelated_command(self):
+        rule = make_rule(['command'], pattern=r'gcloud\s+secrets\s+versions\s+access')
+        self.assertFalse(rule_matches(rule, 'Bash', {'command': 'ls -la'}))
+
+    def test_matching_is_case_insensitive(self):
+        rule = make_rule(['command'], pattern='rm -rf')
+        self.assertTrue(rule_matches(rule, 'Bash', {'command': 'RM -RF /tmp/x'}))
+
+    def test_no_candidates_means_no_match(self):
+        rule = make_rule(['content'])
+        self.assertFalse(rule_matches(rule, 'Read', {'file_path': '/tmp/.env'}))
+
+    def test_invalid_regex_is_treated_as_no_match(self):
+        rule = make_rule(['command'], pattern='[unclosed')
+        self.assertFalse(rule_matches(rule, 'Bash', {'command': 'anything'}))
+
+
 if __name__ == '__main__':
     unittest.main()
