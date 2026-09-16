@@ -80,5 +80,73 @@ class TestRuleMatches(unittest.TestCase):
         self.assertFalse(rule_matches(rule, 'Bash', {'command': 'anything'}))
 
 
+import tempfile
+
+from lib.engine import load_rule_files, load_rules_dir
+
+
+class TestLoadRuleFiles(unittest.TestCase):
+    def test_loads_rules_from_a_glob_pattern(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'a.md')
+            with open(path, 'w') as f:
+                f.write(
+                    "---\nid: r1\nmatch_against: [command]\npattern: foo\naction: deny\n---\n"
+                    "Message one.\n"
+                )
+            rules = load_rule_files([os.path.join(tmp, '*.md')])
+            self.assertEqual(len(rules), 1)
+            self.assertEqual(rules[0].id, 'r1')
+            self.assertEqual(rules[0].match_against, ['command'])
+            self.assertEqual(rules[0].pattern, 'foo')
+            self.assertEqual(rules[0].action, 'deny')
+            self.assertEqual(rules[0].message, 'Message one.')
+
+    def test_skips_blocks_missing_id_or_pattern(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'a.md')
+            with open(path, 'w') as f:
+                f.write("---\naction: deny\n---\nno id or pattern here\n")
+            rules = load_rule_files([os.path.join(tmp, '*.md')])
+            self.assertEqual(rules, [])
+
+    def test_defaults_action_to_deny_when_omitted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'a.md')
+            with open(path, 'w') as f:
+                f.write("---\nid: r1\nmatch_against: [command]\npattern: foo\n---\nmsg\n")
+            rules = load_rule_files([os.path.join(tmp, '*.md')])
+            self.assertEqual(rules[0].action, 'deny')
+
+
+class TestLoadRulesDir(unittest.TestCase):
+    def test_uses_global_dir_when_it_has_rule_files(self):
+        with tempfile.TemporaryDirectory() as global_dir, tempfile.TemporaryDirectory() as bundled_dir:
+            with open(os.path.join(global_dir, 'a.md'), 'w') as f:
+                f.write("---\nid: global-rule\nmatch_against: [command]\npattern: x\n---\nmsg\n")
+            with open(os.path.join(bundled_dir, 'a.md'), 'w') as f:
+                f.write("---\nid: bundled-rule\nmatch_against: [command]\npattern: x\n---\nmsg\n")
+
+            rules = load_rules_dir(global_dir, bundled_dir)
+            self.assertEqual([r.id for r in rules], ['global-rule'])
+
+    def test_falls_back_to_bundled_dir_when_global_dir_is_missing(self):
+        with tempfile.TemporaryDirectory() as bundled_dir:
+            missing_global_dir = os.path.join(bundled_dir, 'does-not-exist')
+            with open(os.path.join(bundled_dir, 'a.md'), 'w') as f:
+                f.write("---\nid: bundled-rule\nmatch_against: [command]\npattern: x\n---\nmsg\n")
+
+            rules = load_rules_dir(missing_global_dir, bundled_dir)
+            self.assertEqual([r.id for r in rules], ['bundled-rule'])
+
+    def test_falls_back_to_bundled_dir_when_global_dir_is_empty(self):
+        with tempfile.TemporaryDirectory() as global_dir, tempfile.TemporaryDirectory() as bundled_dir:
+            with open(os.path.join(bundled_dir, 'a.md'), 'w') as f:
+                f.write("---\nid: bundled-rule\nmatch_against: [command]\npattern: x\n---\nmsg\n")
+
+            rules = load_rules_dir(global_dir, bundled_dir)
+            self.assertEqual([r.id for r in rules], ['bundled-rule'])
+
+
 if __name__ == '__main__':
     unittest.main()

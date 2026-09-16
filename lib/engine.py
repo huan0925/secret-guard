@@ -1,8 +1,12 @@
 """Rule matching engine for secret-guard."""
 
+import glob
+import os
 import re
 from dataclasses import dataclass, field
 from typing import List
+
+from lib.frontmatter import parse_rule_file
 
 
 @dataclass
@@ -46,3 +50,40 @@ def rule_matches(rule, tool_name, tool_input):
     except re.error:
         return False
     return any(regex.search(candidate) for candidate in candidates)
+
+
+def load_rule_files(glob_patterns):
+    """Load and parse every rule file matched by the given glob patterns.
+
+    Args:
+        glob_patterns: list of glob patterns, e.g. ['/some/dir/*.md'].
+
+    Returns:
+        List of Rule objects, in file-then-in-file order. Blocks missing
+        `id` or `pattern` are skipped.
+    """
+    rules = []
+    for pattern in glob_patterns:
+        for file_path in sorted(glob.glob(pattern)):
+            with open(file_path, 'r') as f:
+                text = f.read()
+            for frontmatter, body in parse_rule_file(text):
+                if 'id' not in frontmatter or 'pattern' not in frontmatter:
+                    continue
+                rules.append(Rule(
+                    id=frontmatter['id'],
+                    match_against=frontmatter.get('match_against', []),
+                    pattern=frontmatter['pattern'],
+                    action=frontmatter.get('action', 'deny'),
+                    message=body,
+                    source_file=file_path,
+                ))
+    return rules
+
+
+def load_rules_dir(global_dir, bundled_dir):
+    """Load rules from global_dir if it has any *.md files, else from bundled_dir."""
+    global_pattern = os.path.join(global_dir, '*.md')
+    if glob.glob(global_pattern):
+        return load_rule_files([global_pattern])
+    return load_rule_files([os.path.join(bundled_dir, '*.md')])
