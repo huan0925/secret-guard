@@ -102,3 +102,47 @@ def load_allowlist(allowlist_path):
     for frontmatter, _body in parse_rule_file(text):
         allowed.update(frontmatter.get('allow', []))
     return allowed
+
+
+def evaluate(tool_name, tool_input, rules, allowlist):
+    """Evaluate every rule against this tool call.
+
+    Returns {'action': 'deny'|'warn'|'allow', 'messages': [...], 'matched_ids': [...]}.
+    A matched rule whose id is in `allowlist` never denies or warns, but its
+    id is still surfaced in `matched_ids` (with a 'allow'-action, notice-style
+    message) when nothing else matched, so the allowlisting is visible.
+    """
+    denies = []
+    warns = []
+    allowlisted = []
+
+    for rule in rules:
+        if not rule_matches(rule, tool_name, tool_input):
+            continue
+        if rule.id in allowlist:
+            allowlisted.append(rule)
+            continue
+        if rule.action == 'warn':
+            warns.append(rule)
+        else:
+            denies.append(rule)
+
+    if denies:
+        return {
+            'action': 'deny',
+            'messages': [r.message for r in denies],
+            'matched_ids': [r.id for r in denies],
+        }
+    if warns:
+        return {
+            'action': 'warn',
+            'messages': [r.message for r in warns],
+            'matched_ids': [r.id for r in warns],
+        }
+    if allowlisted:
+        return {
+            'action': 'allow',
+            'messages': [f'Allowlisted: {r.id}' for r in allowlisted],
+            'matched_ids': [r.id for r in allowlisted],
+        }
+    return {'action': 'allow', 'messages': [], 'matched_ids': []}

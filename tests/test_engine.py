@@ -165,5 +165,56 @@ class TestLoadAllowlist(unittest.TestCase):
             self.assertEqual(load_allowlist(path), {'gcloud-secret-access', 'psql-invocation'})
 
 
+from lib.engine import evaluate
+
+
+class TestEvaluate(unittest.TestCase):
+    def test_no_rules_match_allows_silently(self):
+        rules = [make_rule(['command'], pattern='gcloud secrets', rule_id='r1')]
+        result = evaluate('Bash', {'command': 'ls -la'}, rules, allowlist=set())
+        self.assertEqual(result, {'action': 'allow', 'messages': [], 'matched_ids': []})
+
+    def test_matching_deny_rule_denies(self):
+        rule = make_rule(['command'], pattern='gcloud secrets', action='deny', rule_id='gcloud-secret-access')
+        rule.message = 'blocked message'
+        result = evaluate('Bash', {'command': 'gcloud secrets versions access x'}, [rule], allowlist=set())
+        self.assertEqual(result['action'], 'deny')
+        self.assertEqual(result['matched_ids'], ['gcloud-secret-access'])
+        self.assertEqual(result['messages'], ['blocked message'])
+
+    def test_matching_warn_rule_warns_without_denying(self):
+        rule = make_rule(['command'], pattern='sketchy', action='warn', rule_id='r1')
+        rule.message = 'careful'
+        result = evaluate('Bash', {'command': 'sketchy-thing'}, [rule], allowlist=set())
+        self.assertEqual(result['action'], 'warn')
+        self.assertEqual(result['matched_ids'], ['r1'])
+
+    def test_deny_takes_priority_over_warn(self):
+        deny_rule = make_rule(['command'], pattern='foo', action='deny', rule_id='deny-rule')
+        warn_rule = make_rule(['command'], pattern='foo', action='warn', rule_id='warn-rule')
+        result = evaluate('Bash', {'command': 'foo'}, [deny_rule, warn_rule], allowlist=set())
+        self.assertEqual(result['action'], 'deny')
+        self.assertEqual(result['matched_ids'], ['deny-rule'])
+
+    def test_allowlisted_rule_is_not_denied(self):
+        rule = make_rule(['command'], pattern='gcloud secrets', action='deny', rule_id='gcloud-secret-access')
+        result = evaluate(
+            'Bash', {'command': 'gcloud secrets versions access x'}, [rule],
+            allowlist={'gcloud-secret-access'},
+        )
+        self.assertEqual(result['action'], 'allow')
+        self.assertEqual(result['matched_ids'], ['gcloud-secret-access'])
+
+    def test_allowlisting_one_rule_does_not_allowlist_another(self):
+        allowed_rule = make_rule(['command'], pattern='foo', action='deny', rule_id='allowed-rule')
+        other_rule = make_rule(['command'], pattern='foo', action='deny', rule_id='other-rule')
+        result = evaluate(
+            'Bash', {'command': 'foo'}, [allowed_rule, other_rule],
+            allowlist={'allowed-rule'},
+        )
+        self.assertEqual(result['action'], 'deny')
+        self.assertEqual(result['matched_ids'], ['other-rule'])
+
+
 if __name__ == '__main__':
     unittest.main()
