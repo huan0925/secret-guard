@@ -105,6 +105,10 @@ class TestBundledRulesCoverage(unittest.TestCase):
     def test_data_file_flag_denied(self):
         self.assert_denied('Bash', {'command': 'gcloud secrets create foo --data-file=secret.txt'})
 
+    def test_data_file_flag_without_gcloud_is_not_denied(self):
+        result = run_guard_with_real_rules('Bash', {'command': 'python3 train_model.py --data-file=dataset.csv'})
+        self.assertEqual(result.stdout.strip(), '')
+
     def test_harmless_bash_command_allowed(self):
         result = run_guard_with_real_rules('Bash', {'command': 'ls -la'})
         self.assertEqual(result.stdout.strip(), '')

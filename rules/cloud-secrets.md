@@ -46,7 +46,7 @@ action: deny
 ---
 id: data-file-flag
 match_against: [command]
-pattern: --data-file
+pattern: (?=.*\bgcloud\b)(?=.*--data-file)
 action: deny
 ---
 
