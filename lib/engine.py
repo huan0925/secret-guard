@@ -87,3 +87,18 @@ def load_rules_dir(global_dir, bundled_dir):
     if glob.glob(global_pattern):
         return load_rule_files([global_pattern])
     return load_rule_files([os.path.join(bundled_dir, '*.md')])
+
+
+def load_allowlist(allowlist_path):
+    """Return the set of rule ids allowlisted by this project's allowlist file.
+
+    Returns an empty set if the file doesn't exist.
+    """
+    if not os.path.isfile(allowlist_path):
+        return set()
+    with open(allowlist_path, 'r') as f:
+        text = f.read()
+    allowed = set()
+    for frontmatter, _body in parse_rule_file(text):
+        allowed.update(frontmatter.get('allow', []))
+    return allowed

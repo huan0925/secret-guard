@@ -148,5 +148,22 @@ class TestLoadRulesDir(unittest.TestCase):
             self.assertEqual([r.id for r in rules], ['bundled-rule'])
 
 
+from lib.engine import load_allowlist
+
+
+class TestLoadAllowlist(unittest.TestCase):
+    def test_returns_empty_set_when_file_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'does-not-exist.md')
+            self.assertEqual(load_allowlist(path), set())
+
+    def test_returns_allowed_ids_from_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'allow.md')
+            with open(path, 'w') as f:
+                f.write("---\nallow: [gcloud-secret-access, psql-invocation]\n---\nWhy this repo needs it.\n")
+            self.assertEqual(load_allowlist(path), {'gcloud-secret-access', 'psql-invocation'})
+
+
 if __name__ == '__main__':
     unittest.main()
