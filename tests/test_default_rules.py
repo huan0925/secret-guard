@@ -34,6 +34,8 @@ EXPECTED_RULE_IDS = {
     'slack-token-literal',
     'google-api-key-literal',
     'pem-private-key-block',
+    'gcloud-run-describe',
+    'data-file-flag',
 }
 
 
@@ -93,6 +95,15 @@ class TestBundledRulesCoverage(unittest.TestCase):
             'file_path': '/tmp/notes.txt',
             'content': 'key = AKIAABCDEFGHIJKLMNOP',
         })
+
+    def test_bash_cat_of_pem_file_denied(self):
+        self.assert_denied('Bash', {'command': 'cat ~/.ssh/server.pem'})
+
+    def test_gcloud_run_describe_denied(self):
+        self.assert_denied('Bash', {'command': 'gcloud run services describe my-service'})
+
+    def test_data_file_flag_denied(self):
+        self.assert_denied('Bash', {'command': 'gcloud secrets create foo --data-file=secret.txt'})
 
     def test_harmless_bash_command_allowed(self):
         result = run_guard_with_real_rules('Bash', {'command': 'ls -la'})

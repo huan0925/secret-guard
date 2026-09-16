@@ -9,8 +9,8 @@ action: deny
 
 ---
 id: private-key-file-extension
-match_against: [file_path]
-pattern: \.(pem|pfx|key)$
+match_against: [file_path, command]
+pattern: \.(pem|pfx|key)($|[\s"'])
 action: deny
 ---
 

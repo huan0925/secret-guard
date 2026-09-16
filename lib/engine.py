@@ -3,7 +3,7 @@
 import glob
 import os
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List
 
 from lib.frontmatter import parse_rule_file

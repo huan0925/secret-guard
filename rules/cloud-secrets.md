@@ -33,3 +33,21 @@ action: deny
 ---
 
 ⚠️ 此指令會讀取 Azure Key Vault 的機密值。請自行在終端機執行。
+
+---
+id: gcloud-run-describe
+match_against: [command]
+pattern: gcloud\s+run\s+services\s+describe
+action: deny
+---
+
+⚠️ 此指令可能顯示 Cloud Run 服務的環境變數，其中可能包含機密值。
+
+---
+id: data-file-flag
+match_against: [command]
+pattern: --data-file
+action: deny
+---
+
+⚠️ 此指令使用 --data-file 參數，通常用於傳遞機密檔案內容（例如建立/更新 Secret 或金鑰）。
