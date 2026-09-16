@@ -41,6 +41,7 @@ def rule_matches(rule, tool_name, tool_input):
     if not candidates:
         return False
     try:
+        # Case-insensitive matching errs toward over-matching; safer for deny-by-default guards.
         regex = re.compile(rule.pattern, re.IGNORECASE)
     except re.error:
         return False
