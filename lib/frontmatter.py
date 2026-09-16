@@ -33,3 +33,37 @@ def parse_frontmatter_dict(lines):
             result[key] = value.strip('"').strip("'")
 
     return result
+
+
+def parse_rule_file(text):
+    """Parse a rule file's text into a list of (frontmatter_dict, body) tuples.
+
+    Each rule block looks like:
+        ---
+        key: value
+        ---
+        message body
+
+    Multiple such blocks may appear back-to-back in the same file: the
+    closing '---' of one rule's frontmatter also serves as the opening
+    '---' of the next rule's frontmatter. A file with no '---' markers
+    (or an odd, unpaired number of them) yields no rules.
+    """
+    lines = text.split('\n')
+    marker_indices = [i for i, line in enumerate(lines) if line.strip() == '---']
+
+    rules = []
+    for k in range(0, len(marker_indices) - 1, 2):
+        open_idx = marker_indices[k]
+        close_idx = marker_indices[k + 1]
+        frontmatter_lines = lines[open_idx + 1:close_idx]
+
+        body_start = close_idx + 1
+        body_end = marker_indices[k + 2] if k + 2 < len(marker_indices) else len(lines)
+        body_lines = lines[body_start:body_end]
+
+        frontmatter = parse_frontmatter_dict(frontmatter_lines)
+        body = '\n'.join(body_lines).strip()
+        rules.append((frontmatter, body))
+
+    return rules
