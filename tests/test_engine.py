@@ -147,6 +147,13 @@ class TestLoadRulesDir(unittest.TestCase):
             rules = load_rules_dir(global_dir, bundled_dir)
             self.assertEqual([r.id for r in rules], ['bundled-rule'])
 
+    def test_raises_when_bundled_dir_does_not_exist_at_all(self):
+        with tempfile.TemporaryDirectory() as parent:
+            global_dir = os.path.join(parent, 'global-does-not-exist')
+            bundled_dir = os.path.join(parent, 'bundled-does-not-exist')
+            with self.assertRaises(FileNotFoundError):
+                load_rules_dir(global_dir, bundled_dir)
+
 
 from lib.engine import load_allowlist
 

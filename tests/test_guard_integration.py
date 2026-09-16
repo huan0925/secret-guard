@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -154,6 +155,15 @@ class TestGuardFailsOpen(GuardIntegrationTestCase):
         finally:
             os.chmod(broken_file, 0o644)
 
+        self.assertEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertNotIn('hookSpecificOutput', output)
+        self.assertIn('secret-guard did not run correctly', output['systemMessage'])
+
+    def test_missing_bundled_rules_directory_fails_open_with_a_warning(self):
+        rules_dir = os.path.join(self.plugin_root_dir.name, 'rules')
+        shutil.rmtree(rules_dir)  # the whole directory is gone, not just one file
+        result = self.run_guard('Bash', {'command': 'run forbidden-command now'})
         self.assertEqual(result.returncode, 0)
         output = json.loads(result.stdout)
         self.assertNotIn('hookSpecificOutput', output)

@@ -82,10 +82,19 @@ def load_rule_files(glob_patterns):
 
 
 def load_rules_dir(global_dir, bundled_dir):
-    """Load rules from global_dir if it has any *.md files, else from bundled_dir."""
+    """Load rules from global_dir if it has any *.md files, else from bundled_dir.
+
+    Raises FileNotFoundError if bundled_dir doesn't exist at all — a plugin's
+    own bundled rules directory should always be present in a correct
+    install, so its absence is treated as a broken state that must
+    propagate to guard.py's fail-open warning, not silently produce zero
+    rules.
+    """
     global_pattern = os.path.join(global_dir, '*.md')
     if glob.glob(global_pattern):
         return load_rule_files([global_pattern])
+    if not os.path.isdir(bundled_dir):
+        raise FileNotFoundError(f"bundled rules directory not found: {bundled_dir}")
     return load_rule_files([os.path.join(bundled_dir, '*.md')])
 
 
