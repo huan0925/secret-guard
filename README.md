@@ -24,6 +24,23 @@ hookify is Anthropic's official general-purpose `PreToolUse`/`PostToolUse`/`Stop
 
 The short version: hookify is a generic, per-project, conversation-driven rule engine. secret-guard is the opposite shape on purpose — global by default, with project-level config allowed to move in only one direction (documented exceptions), because a secrets guard that's easy to quietly weaken isn't much of a guard.
 
+### Using both together, for defense in depth
+
+They're not competing for the same job, so installing both is the recommended setup, not a compromise:
+
+- **secret-guard** is your always-on, global secrets floor — installed once, active in every project, not something you configure per repo.
+- **hookify** is for project-specific behavioral guardrails that have nothing to do with secrets — e.g. its own bundled examples (`dangerous-rm.local.md`, `require-tests-stop.local.md`, `console-log-warning.local.md`) catch a destructive `rm -rf`, forgetting to run tests before stopping, or debug code left in. Those are exactly the kind of "this project, this habit" rules hookify's conversation-driven, per-project model is built for — and things secret-guard deliberately doesn't try to cover.
+
+**Install both** the same way you'd install either alone — pass both directories to `--plugin-dir`, or copy both into `~/.claude/skills/`:
+
+```bash
+claude --plugin-dir /path/to/secret-guard --plugin-dir /path/to/hookify
+```
+
+**They can't fight each other.** Claude Code runs every matching `PreToolUse` hook and a `deny`/`block` from any one of them wins — and hookify's rules can only ever `warn` or `block`, never force an `allow`. So there's no scenario where a permissive hookify rule overrides a secret-guard deny, or vice versa. Verified directly: with both plugins loaded together, a command matching a secret-guard rule was still denied, with no interference from hookify being present.
+
+**One thing to know about overlap:** hookify ships an example rule for `.env` files (`examples/sensitive-files-warning.local.md`) that a user could copy into their own project. If you do, and secret-guard is also installed, you'd get both hookify's warning *and* secret-guard's deny on the same `.env` access — which is redundant but harmless (belt-and-suspenders). If the double message bothers you, just don't enable hookify example rules that overlap with something secret-guard already covers by default; let secret-guard own the secrets baseline and use hookify for everything else.
+
 ## What it catches (default rule pack)
 
 23 rules across 5 categories, all deny-by-default:
