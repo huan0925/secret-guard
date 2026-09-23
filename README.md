@@ -8,6 +8,22 @@ It's a self-contained Python dispatcher (standard library only, no `yq`/`pyyaml`
 
 Asking an AI assistant to "be careful with secrets" is a suggestion, not a guarantee — it can forget, get talked into it, or just make a mistake. This plugin is a deterministic, code-level guard: the same input always produces the same deny/allow decision, regardless of what the model decides in that moment. It doesn't replace good judgment, but it stops the accidental case — `cat`-ing a `.env` file, running `psql` with a password inline, reading an SSH private key — before it happens.
 
+## How this compares to [hookify](https://github.com/anthropics/claude-code/tree/main/plugins/hookify)
+
+hookify is Anthropic's official general-purpose `PreToolUse`/`PostToolUse`/`Stop`/`UserPromptSubmit` rule engine — a good tool, and secret-guard's rule-file format is deliberately modeled on it. But they solve different problems by design, not just by content:
+
+| | hookify | secret-guard |
+|---|---|---|
+| Rule storage | `.claude/hookify.*.local.md`, relative to the **current working directory** — per-project | `~/.claude/secret-guard/rules/*.md`, a **global** path — active in every project immediately |
+| Intent | General-purpose behavior reminders, often generated ad hoc from a conversation (`conversation-analyzer` agent) via `/hookify` | A secrets-protection baseline, shipped with 23 rules active out of the box — no conversation needed to get coverage |
+| What a project can do | **Add** rules (opt in, per project) | Only **allowlist** (loosen) specific, already-existing global rules by id — never add restriction, never silently disable the whole guard |
+| Event/operator surface | Broader: 5 event types (`bash/file/stop/prompt/all`), 6 match operators (`regex_match/contains/equals/...`) | Narrower on purpose: `PreToolUse` only, across `Bash/Read/Edit/Write/MultiEdit`, single regex `match_against` |
+| Read coverage | Documented `file` event covers Edit/Write/MultiEdit only; Read needs a manual `tool_matcher` override | Read is covered out of the box |
+| Fail-open behavior | Fails open (allows) with a warning if rules can't load | Same principle — plus explicitly treats a missing bundled-rules directory as a hard error, so that failure mode can't go silently unwarned (found during this project's own end-to-end verification) |
+| Dependencies | Pure `python3` standard library | Same |
+
+The short version: hookify is a generic, per-project, conversation-driven rule engine. secret-guard is the opposite shape on purpose — global by default, with project-level config allowed to move in only one direction (documented exceptions), because a secrets guard that's easy to quietly weaken isn't much of a guard.
+
 ## What it catches (default rule pack)
 
 23 rules across 5 categories, all deny-by-default:
