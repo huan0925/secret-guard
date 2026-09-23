@@ -71,11 +71,12 @@ Each should be denied with a Chinese-language explanation of why.
 
 ### Install it so it's always on
 
-Copy (or clone) this repo into your Claude Code skills directory:
+Copy this repo into your Claude Code skills directory (or symlink it, if you're actively developing it and want edits to take effect immediately):
 
 ```bash
 mkdir -p ~/.claude/skills
 cp -r /path/to/secret-guard ~/.claude/skills/secret-guard
+# or: ln -s /path/to/secret-guard ~/.claude/skills/secret-guard
 ```
 
 It loads automatically on your next Claude Code session — no flags needed, and it applies in every project directory, not just ones you've configured.
@@ -105,6 +106,10 @@ Only rules explicitly listed by their `id` (see the ids in `rules/*.md`) are loo
 ## If something goes wrong
 
 If the rule files are missing, unreadable, or malformed, the guard **fails open**: it allows the operation rather than blocking everything, but prints a loud warning saying it didn't run correctly and why. A security tool that locks up every operation when it's broken just gets disabled by frustrated users — failing open with a visible warning means you notice and fix it instead.
+
+## Known limitations
+
+This is a text-matching guard, not a sandbox — it stops accidents, not someone deliberately trying to defeat it. A rule that only checks `command` text never sees `Write` calls, so its trigger text can be routed around (e.g. writing sensitive text to a file, then using `git commit -F file` instead of `-m "..."`). Treat this as a floor for careless mistakes, not a substitute for real access controls like IAM or secret manager permissions.
 
 ## Running the test suite
 
