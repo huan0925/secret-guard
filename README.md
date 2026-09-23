@@ -135,6 +135,10 @@ secret-guard/
 └── tests/                        # 62 tests
 ```
 
+## License
+
+MIT — see [LICENSE](LICENSE).
+
 ## Status
 
 This is v0.1.0, built and verified locally (including a real end-to-end test via `claude --plugin-dir`). It hasn't yet been published to a marketplace or submitted as a PR to `anthropics/claude-code`.

@@ -1,5 +1,11 @@
 {
   "name": "secret-guard",
   "description": "Global, always-on protection against reading or running commands that touch secrets: cloud secret managers, database credentials, key files, Kubernetes secrets, and common API token formats.",
-  "version": "0.1.0"
+  "version": "0.1.0",
+  "author": {
+    "name": "Huan0925"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/huan0925/secret-guard",
+  "repository": "https://github.com/huan0925/secret-guard"
 }
