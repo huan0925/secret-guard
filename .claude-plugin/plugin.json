@@ -1,6 +1,6 @@
 {
   "name": "secret-guard",
-  "description": "Global, always-on protection against reading or running commands that touch secrets. Each rule can deny, ask you first, or warn. Runs as a Claude Code mod; classic/ holds the Python hook for builds without mods.",
+  "description": "Global, always-on protection against reading or running commands that touch secrets. Each rule can deny, ask you first, or warn. Runs as a Claude Code mod.",
   "version": "0.2.0",
   "author": {
     "name": "Huan0925"

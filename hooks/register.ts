@@ -21,7 +21,7 @@ const mdFiles = async ($: EngineInterface, dir: string): Promise<string[]> => {
     .sort()
 }
 
-// Like classic: ~/.claude/secret-guard/rules/ wins when it has any .md file,
+// ~/.claude/secret-guard/rules/ wins when it has any .md file,
 // else the plugin's own rules/. Read fresh on every call, so edits apply at once.
 const loadRules = async ($: EngineInterface): Promise<Rule[]> => {
   const home = await $.env.get('HOME')
@@ -53,7 +53,7 @@ const decide = async ($: EngineInterface, e: ToolCallInput): Promise<string | un
   try {
     rules = await loadRules($)
   } catch (err) {
-    // Fail open with a loud warning, as classic does: a guard that blocks
+    // Fail open with a loud warning: a guard that blocks
     // everything when its rule files break just gets uninstalled.
     $.ui.toast(`secret-guard 規則載入失敗，這次先放行：${String(err)}`)
     return undefined

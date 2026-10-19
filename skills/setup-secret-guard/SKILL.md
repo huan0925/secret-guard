@@ -40,11 +40,11 @@ This skill personalizes that global rule set for the user's actual stack by writ
    <a short message explaining what this rule caught>
    ```
 
-5. Tell the user which files were written, and that the effect is immediate — no restart needed, since the guard (the mod, or `classic/hooks/guard.py`) reads the rules directory fresh on every tool call.
+5. Tell the user which files were written, and that the effect is immediate — no restart needed, since the guard reads the rules directory fresh on every tool call.
 
 ## Notes
 
 - Never remove a category the user didn't explicitly say to drop, and never loosen a rule's `action` they didn't ask to loosen — when in doubt, keep the bundled default rather than silently narrowing coverage.
-- Patterns must work in both engines: write them in the common subset of Python `re` and JavaScript regex (no `(?P<name>...)`, no inline `(?i)`; matching is already case-insensitive).
-- `ask` needs someone to answer: in a non-interactive run (`claude -p`) the mod treats it as a refusal, and the classic hook hands it to Claude Code's permission prompt, which a permissive permission mode may settle without asking.
+- Patterns are JavaScript regular expressions (no Python-only syntax such as `(?P<name>...)` or inline `(?i)`; matching is already case-insensitive). A pattern that doesn't compile never matches.
+- `ask` needs someone to answer: in a non-interactive run (`claude -p`) it counts as a refusal.
 - This skill only tunes the *global* rule set. It does not create or edit any project's `.claude/secret-guard-allow.local.md` allowlist — that's a manual, deliberate action the user takes per-project when a specific repo legitimately needs an exception.

@@ -1,6 +1,5 @@
-// Rule-file parser and matching engine: a port of classic/lib/frontmatter.py
-// and classic/lib/engine.py, so the mod and the classic hook read the same
-// rules/*.md the same way. Pure functions only; register.ts does the I/O.
+// Rule-file parser and matching engine, ported from v0.1's Python hook so
+// rules/*.md keep their meaning. Pure functions only; register.ts does the I/O.
 
 export type Action = 'deny' | 'ask' | 'warn'
 
@@ -79,7 +78,7 @@ type Args = Record<string, unknown>
 
 const str = (v: unknown) => (typeof v === 'string' ? v : '')
 
-// The strings a rule checks, per its match_against. Beyond classic: NotebookEdit
+// The strings a rule checks, per its match_against. Beyond v0.1: NotebookEdit
 // counts as a file write and Grep's `path` as a file read.
 export const candidates = (rule: Rule, tool: string, args: Args): string[] => {
   const out: string[] = []
@@ -103,8 +102,8 @@ export const candidates = (rule: Rule, tool: string, args: Args): string[] => {
 
 const compiled = new Map<string, RegExp | null>()
 
-// Case-insensitive, like classic. A pattern JS cannot compile (Python-only
-// syntax such as `(?P<name>...)`) never matches, as an invalid one does there.
+// Case-insensitive, as in v0.1. A pattern JS cannot compile (Python-only
+// syntax such as `(?P<name>...)`) never matches.
 const regexOf = (pattern: string): RegExp | null => {
   if (!compiled.has(pattern)) {
     let re: RegExp | null = null

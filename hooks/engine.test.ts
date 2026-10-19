@@ -3,8 +3,7 @@ import { describe, expect, test } from 'claude-code/testing'
 import { allowlistFromText, candidates, evaluate, parseRuleFile, rulesFromText } from './engine'
 import type { Rule } from './engine'
 
-// Mirrors classic/tests/test_frontmatter.py and test_engine.py, so the two
-// engines agree on what a rule file means.
+// Carried over from v0.1's Python tests, so the port keeps the rules' meaning.
 
 const rule = (matchAgainst: string[], pattern = 'x', action = 'deny', id = 'r1'): Rule => ({
   id, matchAgainst, pattern, action, message: '', source: 't',
