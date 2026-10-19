@@ -1,16 +1,1 @@
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash|Read|Edit|Write|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/guard.py\"",
-            "timeout": 10
-          }
-        ]
-      }
-    ]
-  }
-}
+{ "modules": ["./register.ts"] }

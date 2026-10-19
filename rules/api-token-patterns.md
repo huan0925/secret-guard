@@ -2,7 +2,7 @@
 id: aws-access-key-literal
 match_against: [command, content]
 pattern: AKIA[0-9A-Z]{16}
-action: deny
+action: ask
 ---
 
 ⚠️ 偵測到文字中出現 AWS Access Key ID 格式的字串。
@@ -11,7 +11,7 @@ action: deny
 id: github-token-literal
 match_against: [command, content]
 pattern: gh[ps]_[0-9A-Za-z]{36}
-action: deny
+action: ask
 ---
 
 ⚠️ 偵測到文字中出現 GitHub Token 格式的字串（ghp_/ghs_ 開頭）。
@@ -20,7 +20,7 @@ action: deny
 id: openai-stripe-style-key-literal
 match_against: [command, content]
 pattern: sk-[A-Za-z0-9]{20,}
-action: deny
+action: ask
 ---
 
 ⚠️ 偵測到文字中出現 sk- 開頭的 API Key 格式字串（常見於 OpenAI/Stripe）。
@@ -29,7 +29,7 @@ action: deny
 id: slack-token-literal
 match_against: [command, content]
 pattern: xox[baprs]-[0-9A-Za-z-]+
-action: deny
+action: ask
 ---
 
 ⚠️ 偵測到文字中出現 Slack Token 格式的字串。
@@ -38,7 +38,7 @@ action: deny
 id: google-api-key-literal
 match_against: [command, content]
 pattern: AIza[0-9A-Za-z_-]{35}
-action: deny
+action: ask
 ---
 
 ⚠️ 偵測到文字中出現 Google API Key 格式的字串。

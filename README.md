@@ -1,8 +1,15 @@
 # secret-guard
 
-A Claude Code plugin that globally, always-on blocks Claude from running commands or reading/writing files that touch secrets — cloud secret managers, database credentials, key files, Kubernetes secrets, and common API token formats. Protection is on for every project by default, not just ones you remembered to configure.
+A Claude Code plugin that globally, always-on stops Claude from running commands or reading/writing files that touch secrets — cloud secret managers, database credentials, key files, Kubernetes secrets, and common API token formats. Protection is on for every project by default, not just ones you remembered to configure.
 
-It's a self-contained Python dispatcher (standard library only, no `yq`/`pyyaml`/external dependencies) hooked into Claude Code's `PreToolUse` event for `Bash`, `Read`, `Edit`, `Write`, and `MultiEdit`.
+Each rule decides what happens when it matches: **deny** (refused outright), **ask** (you choose: allow once, allow that rule for the rest of the session, or refuse), or **warn** (runs, with a notice).
+
+It comes in two forms that read the same `rules/*.md`:
+
+- **The mod** (repo root, v0.2+): a Claude Code function-hooks module (`hooks/register.ts`) on `tool.call`. `ask` opens a question dialog addressed to you directly, so it holds under any permission mode, including auto. Needs a Claude Code build with mod support.
+- **Classic** (`classic/`): the original self-contained Python dispatcher (standard library only) on the `PreToolUse` command hook, for builds without mods. Its `ask` hands the call to Claude Code's permission prompt, which a permissive mode such as auto may settle without showing you.
+
+Install one or the other, not both: a classic `deny` runs beneath the mod and would override an "allow" you gave in the mod's dialog.
 
 ## Why
 
@@ -43,7 +50,7 @@ claude --plugin-dir /path/to/secret-guard --plugin-dir /path/to/hookify
 
 ## What it catches (default rule pack)
 
-23 rules across 5 categories, all deny-by-default:
+23 rules across 5 categories:
 
 - **Cloud secrets** (`rules/cloud-secrets.md`): `gcloud secrets versions access/add`, `gcloud iam service-accounts keys create`, `aws secretsmanager get-secret-value/create-secret/put-secret-value`, `az keyvault secret show`, `gcloud run services describe`, `--data-file` (scoped to `gcloud` commands).
 - **Database credentials** (`rules/db-credentials.md`): `psql`, `PGPASSWORD=`, inline `mysql -p...` passwords, MongoDB connection URIs with embedded credentials.
@@ -51,7 +58,14 @@ claude --plugin-dir /path/to/secret-guard --plugin-dir /path/to/hookify
 - **Kubernetes** (`rules/kubernetes.md`): `kubectl get/describe secret`, base64-decoding a Kubernetes secret value.
 - **API token literals** (`rules/api-token-patterns.md`): AWS access keys (`AKIA...`), GitHub tokens (`ghp_`/`ghs_`), OpenAI/Stripe-style keys (`sk-...`), Slack tokens (`xox...`), Google API keys (`AIza...`), PEM private key blocks.
 
-Every rule can independently be `deny` (blocks the tool call) or `warn` (allows it, but surfaces a warning) — the shipped defaults are all `deny`.
+Every rule's `action` is set independently. The shipped defaults:
+
+- `deny` for the five rules that would put a long-lived private key in front of Claude: `pem-private-key-block`, `ssh-private-key-filename`, `private-key-file-extension`, `aws-credentials-file`, `gcloud-iam-key-create`.
+- `ask` for the other 18.
+
+When several rules match one call, `deny` beats `ask`, which beats `warn`. Dismissing the dialog, typing anything under "Other", or running non-interactively (`claude -p`, where nobody can answer) all count as a refusal. `/secret-guard` lists the rules you allowed for this session; `/secret-guard reset` clears them.
+
+Beyond classic, the mod also checks `NotebookEdit` (as a file write) and `Grep`'s `path` (as a file read).
 
 ## Installation
 
@@ -61,25 +75,29 @@ Every rule can independently be `deny` (blocks the tool call) or `warn` (allows 
 claude --plugin-dir /path/to/secret-guard
 ```
 
+or, for the classic hook:
+
+```bash
+claude --plugin-dir /path/to/secret-guard/classic
+```
+
 This loads the plugin for that one session only. Ask Claude to do something like:
 
-- `gcloud secrets versions access latest --secret=test`
-- Read a `.env` file
-- Write a file containing a string starting with `AKIA`
-
-Each should be denied with a Chinese-language explanation of why.
+- `gcloud secrets versions access latest --secret=test` (asks you first)
+- Read a `.env` file (asks you first)
+- Read `~/.ssh/id_rsa` (denied without asking)
 
 ### Install it so it's always on
 
-Copy this repo into your Claude Code skills directory (or symlink it, if you're actively developing it and want edits to take effect immediately):
+Symlink (or copy) the folder you chose into your Claude Code skills directory:
 
 ```bash
 mkdir -p ~/.claude/skills
-cp -r /path/to/secret-guard ~/.claude/skills/secret-guard
-# or: ln -s /path/to/secret-guard ~/.claude/skills/secret-guard
+ln -s /path/to/secret-guard ~/.claude/skills/secret-guard
+# classic instead: ln -s /path/to/secret-guard/classic ~/.claude/skills/secret-guard
 ```
 
-It loads automatically on your next Claude Code session — no flags needed, and it applies in every project directory, not just ones you've configured.
+It loads automatically on your next Claude Code session and applies in every project directory. `classic/rules` is a symlink to the repo's `rules/`, so the classic folder needs the rest of the repo next to it; symlink it rather than copying it on its own.
 
 ## Customizing which rules are active
 
@@ -87,7 +105,7 @@ The bundled rule pack (this repo's own `rules/*.md`) is broad by design. If you 
 
 > "set up secret guard"
 
-This runs the `setup-secret-guard` skill, which interviews you about your cloud provider(s), databases, and any custom patterns, then writes a tuned copy of the rule files to `~/.claude/secret-guard/rules/`. Once that directory has any `.md` files in it, `guard.py` reads rules from there instead of the plugin's bundled defaults — the effect is immediate, no restart needed.
+This runs the `setup-secret-guard` skill, which interviews you about your cloud provider(s), databases, and any custom patterns, then writes a tuned copy of the rule files to `~/.claude/secret-guard/rules/`. It can also change each rule's `action` (deny / ask / warn). Once that directory has any `.md` files in it, the guard reads rules from there instead of the plugin's bundled defaults — the effect is immediate, no restart needed.
 
 ## Allowing a specific project to bypass a rule
 
@@ -101,11 +119,13 @@ allow: [gcloud-secret-access]
 This repo's job is secret rotation — this command is expected here.
 ```
 
-Only rules explicitly listed by their `id` (see the ids in `rules/*.md`) are loosened, and only in that project directory. Every other project, and every other rule, stays denied. This file should be commented in code review like any other — it's a visible, deliberate exception, not a silent opt-out.
+Only rules explicitly listed by their `id` (see the ids in `rules/*.md`) are loosened — listed rules run without asking, `deny` ones included — and only in that project directory. Every other project, and every other rule, keeps its action. This file should be commented in code review like any other — it's a visible, deliberate exception, not a silent opt-out.
 
 ## If something goes wrong
 
-If the rule files are missing, unreadable, or malformed, the guard **fails open**: it allows the operation rather than blocking everything, but prints a loud warning saying it didn't run correctly and why. A security tool that locks up every operation when it's broken just gets disabled by frustrated users — failing open with a visible warning means you notice and fix it instead.
+If the rule files are missing, unreadable, or malformed, the guard **fails open**: it allows the operation rather than blocking everything, but shows a loud warning saying it didn't run correctly and why (a toast in the mod, a system message in classic). A security tool that locks up every operation when it's broken just gets disabled by frustrated users — failing open with a visible warning means you notice and fix it instead.
+
+Any other error inside the mod's check **fails closed**: the call is refused with the error. Claude Code skips a gating hook that throws, which would otherwise let the call through unchecked.
 
 ## Known limitations
 
@@ -113,26 +133,42 @@ This is a text-matching guard, not a sandbox — it stops accidents, not someone
 
 ## Running the test suite
 
+The mod:
+
 ```bash
-python3 -m unittest discover -s tests -t .
+claude plugin validate .
+claude plugin test .
 ```
 
-62 tests covering the rule-file parser, the matching engine, the dispatcher's end-to-end behavior (via real subprocess calls to `hooks/guard.py`), and the bundled rule pack's actual coverage.
+26 tests: the rule-file parser and engine (`hooks/engine.test.ts`, mirroring the Python ones) and the hook end to end against a virtual file system and dialog (`hooks/register.test.ts`).
+
+Classic:
+
+```bash
+cd classic && python3 -m unittest discover -s tests -t .
+```
+
+67 tests: the parser, the engine, the dispatcher end to end (real subprocess calls to `classic/hooks/guard.py`), the bundled rule pack's coverage, and a parity test that runs both engines over the same made-up cases and requires identical verdicts (skipped without Node 22.6+).
 
 ## Project layout
 
 ```
 secret-guard/
-├── .claude-plugin/plugin.json    # plugin manifest
+├── .claude-plugin/plugin.json    # the mod's manifest
 ├── hooks/
-│   ├── hooks.json                # registers the PreToolUse hook
-│   └── guard.py                  # the dispatcher
-├── lib/
-│   ├── frontmatter.py            # rule-file parser
-│   └── engine.py                 # matching/evaluation engine
-├── rules/                        # bundled default rule pack (5 files, 23 rules)
+│   ├── hooks.json                # { "modules": ["./register.ts"] }
+│   ├── register.ts               # tool.call hook, dialog, /secret-guard
+│   ├── engine.ts                 # rule-file parser + matching engine
+│   └── *.test.ts
+├── types/index.d.ts              # the mod's $.state contract
+├── rules/                        # bundled default rule pack (5 files, 23 rules), shared
 ├── skills/setup-secret-guard/    # tuning wizard
-└── tests/                        # 62 tests
+└── classic/                      # the Python PreToolUse hook
+    ├── .claude-plugin/plugin.json
+    ├── hooks/{hooks.json,guard.py}
+    ├── lib/{frontmatter.py,engine.py}
+    ├── rules -> ../rules
+    └── tests/
 ```
 
 ## License
@@ -141,4 +177,4 @@ MIT — see [LICENSE](LICENSE).
 
 ## Status
 
-This is v0.1.0, built and verified locally (including a real end-to-end test via `claude --plugin-dir`). It hasn't yet been published to a marketplace or submitted as a PR to `anthropics/claude-code`.
+This is v0.2.0. v0.1.0 (classic, deny-only) was verified end to end via `claude --plugin-dir`; v0.2.0's mod is covered by its tests and the parity test. The mod API is marked early access by Claude Code and may change between releases. Not yet published to a marketplace.

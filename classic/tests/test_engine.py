@@ -203,6 +203,20 @@ class TestEvaluate(unittest.TestCase):
         self.assertEqual(result['action'], 'deny')
         self.assertEqual(result['matched_ids'], ['deny-rule'])
 
+    def test_matching_ask_rule_asks(self):
+        rule = make_rule(['command'], pattern='psql', action='ask', rule_id='psql-invocation')
+        rule.message = 'db'
+        result = evaluate('Bash', {'command': 'psql -h db'}, [rule], allowlist=set())
+        self.assertEqual(result['action'], 'ask')
+        self.assertEqual(result['matched_ids'], ['psql-invocation'])
+
+    def test_deny_beats_ask_and_ask_beats_warn(self):
+        deny_rule = make_rule(['command'], pattern='foo', action='deny', rule_id='d')
+        ask_rule = make_rule(['command'], pattern='foo', action='ask', rule_id='a')
+        warn_rule = make_rule(['command'], pattern='foo', action='warn', rule_id='w')
+        self.assertEqual(evaluate('Bash', {'command': 'foo'}, [ask_rule, deny_rule], set())['action'], 'deny')
+        self.assertEqual(evaluate('Bash', {'command': 'foo'}, [warn_rule, ask_rule], set())['matched_ids'], ['a'])
+
     def test_allowlisted_rule_is_not_denied(self):
         rule = make_rule(['command'], pattern='gcloud secrets', action='deny', rule_id='gcloud-secret-access')
         result = evaluate(

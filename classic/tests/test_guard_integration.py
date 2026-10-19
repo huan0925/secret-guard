@@ -19,6 +19,14 @@ FIXTURE_RULES = (
     "Fixture deny message.\n"
     "\n"
     "---\n"
+    "id: test-ask-rule\n"
+    "match_against: [command]\n"
+    "pattern: askable-thing\n"
+    "action: ask\n"
+    "---\n"
+    "Fixture ask message.\n"
+    "\n"
+    "---\n"
     "id: test-warn-rule\n"
     "match_against: [command]\n"
     "pattern: sketchy-thing\n"
@@ -106,6 +114,12 @@ class TestGuardMechanics(GuardIntegrationTestCase):
         output = json.loads(result.stdout)
         self.assertNotIn('hookSpecificOutput', output)
         self.assertIn('Fixture warn message.', output['systemMessage'])
+
+    def test_ask_rule_hands_the_call_to_the_permission_prompt(self):
+        result = self.run_guard('Bash', {'command': 'askable-thing now'})
+        output = json.loads(result.stdout)
+        self.assertEqual(output['hookSpecificOutput']['permissionDecision'], 'ask')
+        self.assertIn('Fixture ask message.', output['hookSpecificOutput']['permissionDecisionReason'])
 
     def test_read_matching_file_path_is_denied(self):
         result = self.run_guard('Read', {'file_path': '/some/project/.env'})

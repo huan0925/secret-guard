@@ -2,7 +2,7 @@
 id: dotenv-file
 match_against: [command, file_path]
 pattern: (^|[/\s"'])\.env(\.[a-zA-Z0-9_-]+)?($|[\s"'])
-action: deny
+action: ask
 ---
 
 ⚠️ 這牽涉到 .env 環境變數檔案，可能包含機密值。
@@ -38,7 +38,7 @@ action: deny
 id: kube-config-file
 match_against: [file_path, command]
 pattern: \.kube/config
-action: deny
+action: ask
 ---
 
 ⚠️ 這是 Kubernetes 的 kubeconfig 檔案，通常內嵌叢集存取憑證。

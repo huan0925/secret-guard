@@ -2,7 +2,7 @@
 id: kubectl-get-secret
 match_against: [command]
 pattern: kubectl\s+(get|describe)\s+secret
-action: deny
+action: ask
 ---
 
 ⚠️ 這會讀取 Kubernetes Secret 的內容。
@@ -11,7 +11,7 @@ action: deny
 id: kubectl-secret-base64-decode
 match_against: [command]
 pattern: kubectl\s+get\s+secret.*base64\s+(-d|--decode)
-action: deny
+action: ask
 ---
 
 ⚠️ 這個指令會把 Kubernetes Secret 的值解碼成明文。

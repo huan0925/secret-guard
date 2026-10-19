@@ -49,6 +49,18 @@ def main():
                 },
                 'systemMessage': f"secret-guard blocked this: {message}",
             }))
+        elif result['action'] == 'ask':
+            # Hands the call to Claude Code's permission prompt. Note: under
+            # auto mode the mode itself may settle the ask without showing it
+            # to the user; the mod version asks the user directly instead.
+            message = '\n\n'.join(result['messages'])
+            print(json.dumps({
+                'hookSpecificOutput': {
+                    'hookEventName': 'PreToolUse',
+                    'permissionDecision': 'ask',
+                    'permissionDecisionReason': message,
+                },
+            }))
         elif result['action'] == 'warn':
             message = '\n\n'.join(result['messages'])
             print(json.dumps({'systemMessage': f"secret-guard warning: {message}"}))

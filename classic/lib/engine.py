@@ -116,12 +116,14 @@ def load_allowlist(allowlist_path):
 def evaluate(tool_name, tool_input, rules, allowlist):
     """Evaluate every rule against this tool call.
 
-    Returns {'action': 'deny'|'warn'|'allow', 'messages': [...], 'matched_ids': [...]}.
+    Returns {'action': 'deny'|'ask'|'warn'|'allow', 'messages': [...], 'matched_ids': [...]}.
+    Precedence when several rules match: deny > ask > warn > allow.
     A matched rule whose id is in `allowlist` never denies or warns, but its
     id is still surfaced in `matched_ids` (with a 'allow'-action, notice-style
     message) when nothing else matched, so the allowlisting is visible.
     """
     denies = []
+    asks = []
     warns = []
     allowlisted = []
 
@@ -133,6 +135,8 @@ def evaluate(tool_name, tool_input, rules, allowlist):
             continue
         if rule.action == 'warn':
             warns.append(rule)
+        elif rule.action == 'ask':
+            asks.append(rule)
         else:
             denies.append(rule)
 
@@ -141,6 +145,12 @@ def evaluate(tool_name, tool_input, rules, allowlist):
             'action': 'deny',
             'messages': [r.message for r in denies],
             'matched_ids': [r.id for r in denies],
+        }
+    if asks:
+        return {
+            'action': 'ask',
+            'messages': [r.message for r in asks],
+            'matched_ids': [r.id for r in asks],
         }
     if warns:
         return {

@@ -67,31 +67,37 @@ def run_guard_with_real_rules(tool_name, tool_input):
 
 
 class TestBundledRulesCoverage(unittest.TestCase):
-    def assert_denied(self, tool_name, tool_input):
+    def assert_decision(self, decision, tool_name, tool_input):
         result = run_guard_with_real_rules(tool_name, tool_input)
         output = json.loads(result.stdout)
         self.assertEqual(
-            output.get('hookSpecificOutput', {}).get('permissionDecision'), 'deny',
-            msg=f"expected deny for {tool_name} {tool_input}, got: {result.stdout}",
+            output.get('hookSpecificOutput', {}).get('permissionDecision'), decision,
+            msg=f"expected {decision} for {tool_name} {tool_input}, got: {result.stdout}",
         )
 
-    def test_gcloud_secret_access_denied(self):
-        self.assert_denied('Bash', {'command': 'gcloud secrets versions access latest --secret=foo'})
+    def assert_denied(self, tool_name, tool_input):
+        self.assert_decision('deny', tool_name, tool_input)
 
-    def test_psql_denied(self):
-        self.assert_denied('Bash', {'command': 'psql "postgres://user:pass@host/db"'})
+    def assert_asked(self, tool_name, tool_input):
+        self.assert_decision('ask', tool_name, tool_input)
 
-    def test_kubectl_get_secret_denied(self):
-        self.assert_denied('Bash', {'command': 'kubectl get secret my-secret -o yaml'})
+    def test_gcloud_secret_access_asks(self):
+        self.assert_asked('Bash', {'command': 'gcloud secrets versions access latest --secret=foo'})
 
-    def test_read_dotenv_denied(self):
-        self.assert_denied('Read', {'file_path': '/some/project/.env'})
+    def test_psql_asks(self):
+        self.assert_asked('Bash', {'command': 'psql "postgres://user:pass@host/db"'})
+
+    def test_kubectl_get_secret_asks(self):
+        self.assert_asked('Bash', {'command': 'kubectl get secret my-secret -o yaml'})
+
+    def test_read_dotenv_asks(self):
+        self.assert_asked('Read', {'file_path': '/some/project/.env'})
 
     def test_read_ssh_key_denied(self):
         self.assert_denied('Read', {'file_path': os.path.expanduser('~/.ssh/id_rsa')})
 
-    def test_write_aws_key_shaped_content_denied(self):
-        self.assert_denied('Write', {
+    def test_write_aws_key_shaped_content_asks(self):
+        self.assert_asked('Write', {
             'file_path': '/tmp/notes.txt',
             'content': 'key = AKIAABCDEFGHIJKLMNOP',
         })
@@ -99,11 +105,11 @@ class TestBundledRulesCoverage(unittest.TestCase):
     def test_bash_cat_of_pem_file_denied(self):
         self.assert_denied('Bash', {'command': 'cat ~/.ssh/server.pem'})
 
-    def test_gcloud_run_describe_denied(self):
-        self.assert_denied('Bash', {'command': 'gcloud run services describe my-service'})
+    def test_gcloud_run_describe_asks(self):
+        self.assert_asked('Bash', {'command': 'gcloud run services describe my-service'})
 
-    def test_data_file_flag_denied(self):
-        self.assert_denied('Bash', {'command': 'gcloud secrets create foo --data-file=secret.txt'})
+    def test_data_file_flag_asks(self):
+        self.assert_asked('Bash', {'command': 'gcloud secrets create foo --data-file=secret.txt'})
 
     def test_data_file_flag_without_gcloud_is_not_denied(self):
         result = run_guard_with_real_rules('Bash', {'command': 'python3 train_model.py --data-file=dataset.csv'})
