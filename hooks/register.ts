@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, ToolCallInput } from 'claude-code'
 
-import { allowlistFromText, evaluate, rulesFromText } from './engine'
+import { allowlistFromText, evaluate, hitOf, rulesFromText } from './engine'
 import type { Rule } from './engine'
 
 const ALLOWLIST_FILE = '.claude/secret-guard-allow.local.md'
@@ -38,14 +38,19 @@ const loadAllowlist = async ($: EngineInterface): Promise<Set<string>> => {
   return isThere ? allowlistFromText(await $.fs.read(ALLOWLIST_FILE)) : new Set()
 }
 
-const preview = (e: ToolCallInput) => {
-  const args = e as unknown as Record<string, unknown>
-  const raw = [args.command, args.file_path, args.notebook_path, args.path].find(v => typeof v === 'string')
-  const text = String(raw ?? '').replace(/\s+/g, ' ')
-  return text.length > 120 ? `${text.slice(0, 117)}...` : text
-}
-
 const messages = (rules: Rule[]) => rules.map(r => r.message || r.id).join('\n')
+
+// Per rule: why it fired and the exact part of the call that set it off.
+const reasons = (e: ToolCallInput, rules: Rule[]) =>
+  rules
+    .map(rule => {
+      const hit = hitOf(rule, e.tool, e as unknown as Record<string, unknown>)
+      const why = `• ${rule.message || rule.id}（規則：${rule.id}）`
+      return hit ? `${why}\n  碰到的部分：${hit.line}` : why
+    })
+    .join('\n')
+
+const LEGEND = '【】標出觸發規則的文字；同一行後面接的指令就是結果的去向。'
 
 // Returns a deny reason, or undefined to let the call run.
 const decide = async ($: EngineInterface, e: ToolCallInput): Promise<string | undefined> => {
@@ -71,10 +76,10 @@ const decide = async ($: EngineInterface, e: ToolCallInput): Promise<string | un
   }
 
   if (verdict.action === 'deny') {
-    return `🛑 secret-guard 擋下（${ids.join(', ')}）：\n${messages(verdict.rules)}\n這條規則設定為一律拒絕，不要換個方式繞過；需要的話請使用者自己在終端機執行。`
+    return `🛑 secret-guard 擋下這個 ${e.tool} 呼叫：\n${reasons(e, verdict.rules)}\n${LEGEND}\n這條規則設定為一律拒絕，不要換個方式繞過；需要的話請使用者自己在終端機執行。`
   }
 
-  const question = `secret-guard：${e.tool} 可能碰到機密。\n${preview(e)}\n${messages(verdict.rules)}\n規則：${ids.join(', ')}\n要放行嗎？`
+  const question = `secret-guard 攔下一個 ${e.tool} 呼叫，放行前請確認。\n\n為什麼攔：\n${reasons(e, verdict.rules)}\n\n${LEGEND}\n要放行嗎？`
   // Dismissed, or nobody to ask (`claude -p`): counts as a no.
   const answer = await $.ui
     .ask(question, { header: '機密保護', options: [ALLOW_ONCE, ALLOW_SESSION, DENY] })

@@ -1,7 +1,7 @@
 ---
 id: gcloud-secret-access
 match_against: [command]
-pattern: gcloud\s+secrets\s+versions\s+(access|add)
+pattern: \bgcloud\b[^;&|\n]*\bsecrets\b[^;&|\n]*\bversions\b[^;&|\n]*\b(access|add)\b
 action: ask
 ---
 
@@ -35,13 +35,13 @@ action: ask
 ⚠️ 此指令會讀取 Azure Key Vault 的機密值。
 
 ---
-id: gcloud-run-describe
+id: cli-auth-token
 match_against: [command]
-pattern: gcloud\s+run\s+services\s+describe
+pattern: \bgcloud\s+auth\s+(application-default\s+)?print-(access|identity)-token|\bgh\s+auth\s+token\b
 action: ask
 ---
 
-⚠️ 此指令可能顯示 Cloud Run 服務的環境變數，其中可能包含機密值。
+⚠️ 此指令會印出目前登入帳號的存取 token。
 
 ---
 id: data-file-flag

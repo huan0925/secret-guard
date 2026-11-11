@@ -79,15 +79,17 @@ type Args = Record<string, unknown>
 const str = (v: unknown) => (typeof v === 'string' ? v : '')
 
 // The strings a rule checks, per its match_against. Beyond v0.1: NotebookEdit
-// counts as a file write and Grep's `path` as a file read.
+// counts as a file write and Grep's `path` and `glob` as a file read.
 export const candidates = (rule: Rule, tool: string, args: Args): string[] => {
   const out: string[] = []
   for (const field of rule.matchAgainst) {
     if (field === 'command' && tool === 'Bash') out.push(str(args.command))
+    // `tool` checks the tool's own name, for tools (MCP ones) that hand back secrets.
+    else if (field === 'tool') out.push(tool)
     else if (field === 'file_path') {
       if (['Read', 'Edit', 'Write', 'MultiEdit'].includes(tool)) out.push(str(args.file_path))
       else if (tool === 'NotebookEdit') out.push(str(args.notebook_path))
-      else if (tool === 'Grep') out.push(str(args.path))
+      else if (tool === 'Grep') out.push(str(args.path), str(args.glob))
     } else if (field === 'content') {
       if (tool === 'Write') out.push(str(args.content))
       else if (tool === 'Edit') out.push(str(args.new_string))
@@ -121,6 +123,48 @@ export const ruleMatches = (rule: Rule, tool: string, args: Args): boolean => {
   const found = candidates(rule, tool, args)
   const re = found.length > 0 ? regexOf(rule.pattern) : null
   return re !== null && found.some(c => re.test(c))
+}
+
+export type Hit = {
+  // The text the pattern matched.
+  matched: string
+  // The whole line around it, with the match wrapped in 【】.
+  line: string
+}
+
+const LINE_LIMIT = 240
+
+const squash = (s: string) => s.replace(/\s+/g, ' ')
+
+// What a rule matched and the line around it, so whoever is asked can see what
+// the call would touch and, from the rest of the line, where the output goes.
+export const hitOf = (rule: Rule, tool: string, args: Args): Hit | undefined => {
+  const re = regexOf(rule.pattern)
+  if (!re) return undefined
+
+  for (const text of candidates(rule, tool, args)) {
+    const m = re.exec(text)
+    if (!m) continue
+
+    const matchEnd = m.index + m[0].length
+    const lineStart = text.lastIndexOf('\n', m.index - 1) + 1
+    const nextBreak = text.indexOf('\n', matchEnd)
+    const lineEnd = nextBreak < 0 ? text.length : nextBreak
+
+    // A long line keeps the match and what follows it, which says where the output goes.
+    const from = Math.max(lineStart, Math.min(m.index - 60, lineEnd - LINE_LIMIT))
+    const to = Math.min(lineEnd, Math.max(from + LINE_LIMIT, matchEnd))
+    const before = squash(text.slice(from, m.index))
+    const matched = squash(m[0])
+    const after = squash(text.slice(matchEnd, to))
+    const marked = matched.trim() ? `${before}【${matched}】${after}` : `${before}${after}`
+
+    return {
+      matched: matched.trim(),
+      line: `${from > lineStart ? '…' : ''}${marked.trim()}${to < lineEnd ? '…' : ''}`,
+    }
+  }
+  return undefined
 }
 
 // deny > ask > warn > allow. The project allowlist lets any rule through;
